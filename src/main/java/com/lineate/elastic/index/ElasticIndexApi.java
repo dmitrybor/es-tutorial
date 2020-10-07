@@ -1,6 +1,5 @@
 package com.lineate.elastic.index;
 
-import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
@@ -8,7 +7,6 @@ import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.client.RequestOptions;
-import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
@@ -26,21 +24,10 @@ public class ElasticIndexApi {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ElasticIndexApi.class);
 
-    private static final String esHost = "localhost";
-    private static final int esPort = 9200;
-
     private final RestHighLevelClient client;
 
-    public ElasticIndexApi() {
-        client = createElasticClient();
-    }
-
-    public void dispose() {
-        try {
-            client.close();
-        } catch (IOException e) {
-            LOGGER.warn("Error occurred while closing Elasticsearch rest high level client", e);
-        }
+    public ElasticIndexApi(RestHighLevelClient client) {
+        this.client = client;
     }
 
     public boolean createIndex(final String indexName, final String indexConfigFileName) {
@@ -177,9 +164,4 @@ public class ElasticIndexApi {
         }
     }
 
-    private RestHighLevelClient createElasticClient() {
-        return new RestHighLevelClient(
-                RestClient.builder(new HttpHost(esHost, esPort, "http"))
-        );
-    }
 }
