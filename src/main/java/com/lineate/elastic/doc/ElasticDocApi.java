@@ -11,6 +11,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.VersionType;
 import org.elasticsearch.index.reindex.BulkByScrollResponse;
@@ -33,7 +34,7 @@ public class ElasticDocApi {
         this.client = client;
     }
 
-    public void reindex(final String fromIndex, final String toIndex) {
+    public void reindex(final String fromIndex, final String toIndex) throws IOException {
         try {
             LOGGER.info("Reindexing documents from {} to {}", fromIndex, toIndex);
 
@@ -42,7 +43,8 @@ public class ElasticDocApi {
             request.setDestIndex(toIndex);
             request.setDestVersionType(VersionType.INTERNAL);
             request.setConflicts("proceed");
-            request.setSourceBatchSize(100);
+            request.setSourceBatchSize(1000);
+            request.setTimeout(TimeValue.timeValueMinutes(60));
 
             BulkByScrollResponse bulkResponse =
                     client.reindex(request, RequestOptions.DEFAULT);
@@ -50,10 +52,12 @@ public class ElasticDocApi {
             if (bulkResponse.isTimedOut()) {
                 LOGGER.info("Could not reindex documents from {} to {}", fromIndex, toIndex);
             } else {
-                LOGGER.info("Successfully reindexed {} documents from {} to {}", bulkResponse.getTotal(), fromIndex, toIndex);
+                LOGGER.info("Successfully reindexed {} documents from {} to {} in {} ms",
+                        bulkResponse.getTotal(), fromIndex, toIndex, bulkResponse.getTook().millis());
             }
         } catch (IOException | ElasticsearchException e) {
             LOGGER.warn("Error occurred while reindexing", e);
+            throw e;
         }
     }
 
@@ -89,7 +93,9 @@ public class ElasticDocApi {
             BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
 
             if (bulkResponse.status() == RestStatus.OK) {
-                LOGGER.info("{} Documents were successfully indexed from file", bulkResponse.getItems().length);
+                LOGGER.info("{} Documents were successfully indexed from file in {} ms",
+                        bulkResponse.getItems().length,
+                        bulkResponse.getTook().millis());
             } else {
                 LOGGER.info("Could not index documents form file");
             }

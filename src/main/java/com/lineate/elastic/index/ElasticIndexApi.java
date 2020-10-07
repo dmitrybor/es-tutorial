@@ -4,21 +4,22 @@ import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsRequest;
+import org.elasticsearch.action.admin.indices.settings.get.GetSettingsResponse;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
-import org.elasticsearch.client.GetAliasesResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.indices.CreateIndexRequest;
 import org.elasticsearch.client.indices.CreateIndexResponse;
 import org.elasticsearch.client.indices.GetIndexRequest;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.Charset;
+import java.util.Iterator;
 
 public class ElasticIndexApi {
 
@@ -144,20 +145,35 @@ public class ElasticIndexApi {
         }
     }
 
+    public boolean checkIndexHasAlias(final String indexName, final String alias) {
+        try {
+            GetAliasesRequest request = new GetAliasesRequest();
+            request.indices(indexName);
+            request.aliases(alias);
+            return client.indices().existsAlias(request, RequestOptions.DEFAULT);
+        } catch (IOException | ElasticsearchStatusException e) {
+            LOGGER.warn("Error occurred while checking alias for index", e);
+            return false;
+        }
+    }
+
     public String getIndexNameByAlias(final String alias) {
         try {
             LOGGER.info("Getting index name by alias {}", alias);
 
-            GetAliasesRequest request = new GetAliasesRequest(alias);
-            GetAliasesResponse response = client.indices().getAlias(request, RequestOptions.DEFAULT);
+            GetSettingsRequest request = new GetSettingsRequest().indices(alias);
+            request.names("index.provided_name");
 
-            if (response.status() == RestStatus.OK) {
-                LOGGER.info("Successfully got index name for alias {}", alias);
-                return response.getAliases().keySet().stream().findFirst().get();
+            GetSettingsResponse response = client.indices().getSettings(request, RequestOptions.DEFAULT);
+
+            Iterator<String> indexNamesIterator = response.getIndexToSettings().keysIt();
+            if (indexNamesIterator.hasNext()) {
+                return indexNamesIterator.next();
             } else {
-                LOGGER.info("Could not get index name for alias {}", alias);
+                LOGGER.info("Could not get index name by alias");
                 return null;
             }
+
         } catch (IOException | ElasticsearchStatusException e) {
             LOGGER.warn("Error occurred while getting aliases for index", e);
             return null;
