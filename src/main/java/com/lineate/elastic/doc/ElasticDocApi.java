@@ -11,6 +11,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.tasks.TaskSubmissionResponse;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.VersionType;
@@ -34,16 +35,11 @@ public class ElasticDocApi {
         this.client = client;
     }
 
-    public void reindex(final String fromIndex, final String toIndex) throws IOException {
+    public boolean reindex(final String fromIndex, final String toIndex) throws IOException {
         try {
             LOGGER.info("Reindexing documents from {} to {}", fromIndex, toIndex);
 
-            ReindexRequest request = new ReindexRequest();
-            request.setSourceIndices(fromIndex);
-            request.setDestIndex(toIndex);
-            request.setDestVersionType(VersionType.INTERNAL);
-            request.setConflicts("proceed");
-            request.setSourceBatchSize(1000);
+            ReindexRequest request = prepareReindexRequest(fromIndex, toIndex);
             request.setTimeout(TimeValue.timeValueMinutes(60));
 
             BulkByScrollResponse bulkResponse =
@@ -51,9 +47,11 @@ public class ElasticDocApi {
 
             if (bulkResponse.isTimedOut()) {
                 LOGGER.info("Could not reindex documents from {} to {}", fromIndex, toIndex);
+                return false;
             } else {
                 LOGGER.info("Successfully reindexed {} documents from {} to {} in {} ms",
                         bulkResponse.getTotal(), fromIndex, toIndex, bulkResponse.getTook().millis());
+                return true;
             }
         } catch (IOException | ElasticsearchException e) {
             LOGGER.warn("Error occurred while reindexing", e);
@@ -61,7 +59,21 @@ public class ElasticDocApi {
         }
     }
 
-    public void bulkIndexFromNdJsonFile(final String indexName, final String ndJsonFileName) {
+    public String submitReindexTask(final String fromIndex, final String toIndex) throws IOException {
+        try {
+            LOGGER.info("Submitting a task to reindex documents from {} to {}", fromIndex, toIndex);
+            ReindexRequest request = prepareReindexRequest(fromIndex, toIndex);
+            TaskSubmissionResponse response = client.submitReindexTask(request, RequestOptions.DEFAULT);
+            String taskId = response.getTask();
+            LOGGER.info("Reindexing task successfully submitted, task id: {}", taskId);
+            return taskId;
+        } catch (IOException | ElasticsearchException e) {
+            LOGGER.warn("Error occurred while submitting reindexing task", e);
+            throw e;
+        }
+    }
+
+    public boolean bulkIndexFromNdJsonFile(final String indexName, final String ndJsonFileName) throws IOException {
         try {
             LOGGER.info("Indexing documents into {} from file {}", indexName, ndJsonFileName);
             BulkRequest bulkRequest;
@@ -71,7 +83,7 @@ public class ElasticDocApi {
             ) {
                 if (resourceAsStream == null) {
                     LOGGER.warn("Cannot index content json file file {}", ndJsonFileName);
-                    return;
+                    return false;
                 }
 
                 bulkRequest = new BulkRequest();
@@ -96,12 +108,25 @@ public class ElasticDocApi {
                 LOGGER.info("{} Documents were successfully indexed from file in {} ms",
                         bulkResponse.getItems().length,
                         bulkResponse.getTook().millis());
+                return true;
             } else {
                 LOGGER.info("Could not index documents form file");
+                return false;
             }
 
         } catch (IOException | ElasticsearchStatusException e) {
             LOGGER.warn("Error during bulk indexing", e);
+            throw e;
         }
+    }
+
+    private ReindexRequest prepareReindexRequest(final String fromIndex, final String toIndex) {
+        ReindexRequest request = new ReindexRequest();
+        request.setSourceIndices(fromIndex);
+        request.setDestIndex(toIndex);
+        request.setDestVersionType(VersionType.INTERNAL);
+        request.setConflicts("proceed");
+        request.setSourceBatchSize(100);
+        return request;
     }
 }
