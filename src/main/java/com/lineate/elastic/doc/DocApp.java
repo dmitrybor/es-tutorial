@@ -2,6 +2,9 @@ package com.lineate.elastic.doc;
 
 import com.lineate.elastic.ElasticApp;
 import com.lineate.elastic.index.ElasticIndexApi;
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;
@@ -28,5 +31,16 @@ public class DocApp extends ElasticApp {
 
             elasticIndexApi.deleteIndex(firstIndexName);
         }
+    }
+
+    private static RestHighLevelClient createElasticClient(final int connectTimeout, final int socketTimeout) {
+        RestClientBuilder builder = RestClient.builder(new HttpHost(esHost, esPort, "http"));
+        builder.setRequestConfigCallback(requestConfigBuilder ->
+                requestConfigBuilder
+                        .setConnectTimeout(connectTimeout)
+                        .setSocketTimeout(socketTimeout)
+                        .setConnectionRequestTimeout(0));
+
+        return new RestHighLevelClient(builder);
     }
 }
