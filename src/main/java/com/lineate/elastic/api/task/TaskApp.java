@@ -4,7 +4,7 @@ import com.lineate.elastic.ElasticApp;
 import com.lineate.elastic.api.doc.ElasticDocApi;
 import com.lineate.elastic.api.index.ElasticIndexApi;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.tasks.TaskInfo;
+import org.elasticsearch.client.tasks.GetTaskResponse;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
@@ -40,12 +40,12 @@ public class TaskApp extends ElasticApp {
 
             String reindexTaskId = elasticDocApi.submitReindexTask(oldIndexRealName, newIndexRealName);
             Thread.sleep(100);
-            TaskInfo taskInfo = elasticTaskApi.getTaskInfo(reindexTaskId, false);
+            GetTaskResponse taskInfoResponse = elasticTaskApi.getTaskInfo(reindexTaskId, false);
 
             elasticTaskApi.cancelTask(reindexTaskId);
 
             Thread.sleep(100);
-            taskInfo = elasticTaskApi.getTaskInfo(reindexTaskId, true);
+            taskInfoResponse = elasticTaskApi.getTaskInfo(reindexTaskId, true);
 
             elasticIndexApi.deleteIndex(newIndexRealName);
         }

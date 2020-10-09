@@ -1,11 +1,12 @@
 package com.lineate.elastic.controller;
 
-import com.lineate.elastic.IndexManagementService;
 import com.lineate.elastic.configuration.EntitySearchProperties;
 import com.lineate.elastic.configuration.ProductSearchProperties;
 import com.lineate.elastic.configuration.WorkSearchProperties;
 import com.lineate.elastic.dto.StatusResponse;
+import com.lineate.elastic.dto.TaskStatusResponse;
 import com.lineate.elastic.enums.DataIndexerTypes;
+import com.lineate.elastic.service.IndexManagementService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -56,8 +57,15 @@ public class IndexManagementController {
     }
 
     @GetMapping("/reindexing/{indexerType}")
-    public StatusResponse getReindexingJobStatus(@PathVariable("indexerType") DataIndexerTypes indexerType) {
-        return indexManagementService.getReindexingJobStatus(indexerType);
+    public TaskStatusResponse getReindexingJobStatus(@PathVariable("indexerType") DataIndexerTypes indexerType) {
+        EntitySearchProperties properties = indexerProperties.get(indexerType);
+        return indexManagementService.getReindexingTaskStatus(properties);
+    }
+
+    @DeleteMapping("/reindexing/{indexerType}")
+    public StatusResponse cancelReindexing(@PathVariable("indexerType") DataIndexerTypes indexerType) {
+        EntitySearchProperties properties = indexerProperties.get(indexerType);
+        return indexManagementService.cancelReindexing(properties);
     }
 
 }

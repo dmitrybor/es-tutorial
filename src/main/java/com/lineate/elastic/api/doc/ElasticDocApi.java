@@ -59,7 +59,7 @@ public class ElasticDocApi {
         }
     }
 
-    public String submitReindexTask(final String fromIndex, final String toIndex) throws IOException {
+    public String submitReindexTask(final String fromIndex, final String toIndex) {
         try {
             LOGGER.info("Submitting a task to reindex documents from {} to {}", fromIndex, toIndex);
             ReindexRequest request = prepareReindexRequest(fromIndex, toIndex);
@@ -69,7 +69,7 @@ public class ElasticDocApi {
             return taskId;
         } catch (IOException | ElasticsearchException e) {
             LOGGER.warn("Error occurred while submitting reindexing task", e);
-            throw e;
+            return null;
         }
     }
 

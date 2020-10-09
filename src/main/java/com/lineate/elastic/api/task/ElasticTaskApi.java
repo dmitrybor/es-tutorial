@@ -1,5 +1,6 @@
 package com.lineate.elastic.api.task;
 
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.tasks.CancelTasksRequest;
@@ -21,7 +22,7 @@ public class ElasticTaskApi {
         this.client = client;
     }
 
-    public TaskInfo getTaskInfo(final String taskIdString, final boolean waitForCompletion) throws IOException {
+    public GetTaskResponse getTaskInfo(final String taskIdString, final boolean waitForCompletion) {
         try {
             LOGGER.info("Loading info for task with id {}", taskIdString);
             String[] taskId = taskIdString.split(":");
@@ -32,18 +33,18 @@ public class ElasticTaskApi {
             if (response != null) {
                 TaskInfo taskInfo = response.getTaskInfo();
                 LOGGER.info("Successfully retrieved info for task. Completed {}, Status {}", response.isCompleted(), taskInfo.toString());
-                return taskInfo;
+                return response;
             } else {
                 LOGGER.info("Could not retrieve info for task {}", taskIdString);
                 return null;
             }
-        } catch (IOException e) {
+        } catch (IOException | ElasticsearchException e) {
             LOGGER.warn("Error occurred while retrieving info for a task", e);
-            throw e;
+            return null;
         }
     }
 
-    public boolean cancelTask(String taskIdString) throws IOException {
+    public boolean cancelTask(String taskIdString) {
         try {
             LOGGER.info("Cancelling task with id: {}", taskIdString);
             CancelTasksRequest request = new CancelTasksRequest.Builder()
@@ -61,7 +62,7 @@ public class ElasticTaskApi {
             }
         } catch (IOException e) {
             LOGGER.warn("Error occurred while canceling a task", e);
-            throw e;
+            return false;
         }
     }
 }
