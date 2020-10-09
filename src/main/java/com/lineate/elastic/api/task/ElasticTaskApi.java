@@ -1,4 +1,4 @@
-package com.lineate.elastic.task;
+package com.lineate.elastic.api.task;
 
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;

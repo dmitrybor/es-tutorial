@@ -1,0 +1,22 @@
+spring:
+  profiles:
+    active: swagger
+  jackson:
+    mapper:
+      ACCEPT_CASE_INSENSITIVE_ENUMS: true
+
+server:
+  port: 8080
+  address: 0.0.0.0
+
+search:
+  host: localhost
+  port: 9200
+  batchSize: 100
+  work:
+    indexName: work-index
+    configFile: work_index.json
+  product:
+    indexName: product
+    configFile: product-index-2.json
+

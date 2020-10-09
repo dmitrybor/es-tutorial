@@ -1,7 +1,7 @@
-package com.lineate.elastic.doc;
+package com.lineate.elastic.api.doc;
 
 import com.lineate.elastic.ElasticApp;
-import com.lineate.elastic.index.ElasticIndexApi;
+import com.lineate.elastic.api.index.ElasticIndexApi;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -28,7 +28,7 @@ public class DocApp extends ElasticApp {
 
             elasticIndexApi.createIndex(secondIndexName, "product-index-2.json");
             elasticDocApi.reindex(firstIndexName, secondIndexName);
-
+            elasticIndexApi.addAliasToIndex(secondIndexName, baseIndexName);
             elasticIndexApi.deleteIndex(firstIndexName);
         }
     }

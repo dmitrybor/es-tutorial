@@ -1,4 +1,4 @@
-package com.lineate.elastic.index;
+package com.lineate.elastic.api.index;
 
 import com.lineate.elastic.ElasticApp;
 import org.elasticsearch.client.RestHighLevelClient;

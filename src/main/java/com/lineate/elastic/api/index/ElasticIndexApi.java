@@ -1,4 +1,4 @@
-package com.lineate.elastic.index;
+package com.lineate.elastic.api.index;
 
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
@@ -79,7 +79,7 @@ public class ElasticIndexApi {
         }
     }
 
-    public void deleteIndex(final String indexName) {
+    public boolean deleteIndex(final String indexName) {
         try {
             LOGGER.info("Deleting index: {}", indexName);
 
@@ -88,11 +88,14 @@ public class ElasticIndexApi {
             AcknowledgedResponse deleteIndexResponse = client.indices().delete(request, RequestOptions.DEFAULT);
             if (deleteIndexResponse.isAcknowledged()) {
                 LOGGER.info("Index {} deleted", indexName);
+                return true;
             } else {
                 LOGGER.info("Could not delete index {}", indexName);
+                return false;
             }
         } catch (IOException | ElasticsearchException e) {
             LOGGER.warn("Error occurred while deleting index", e);
+            return false;
         }
     }
 

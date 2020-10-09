@@ -1,8 +1,8 @@
-package com.lineate.elastic.task;
+package com.lineate.elastic.api.task;
 
 import com.lineate.elastic.ElasticApp;
-import com.lineate.elastic.doc.ElasticDocApi;
-import com.lineate.elastic.index.ElasticIndexApi;
+import com.lineate.elastic.api.doc.ElasticDocApi;
+import com.lineate.elastic.api.index.ElasticIndexApi;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.tasks.TaskInfo;
 
