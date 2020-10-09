@@ -1,12 +1,13 @@
 package com.lineate.elastic.api.task;
 
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
+import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.client.tasks.CancelTasksRequest;
-import org.elasticsearch.client.tasks.CancelTasksResponse;
 import org.elasticsearch.client.tasks.GetTaskRequest;
 import org.elasticsearch.client.tasks.GetTaskResponse;
+import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.tasks.TaskInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,12 +48,10 @@ public class ElasticTaskApi {
     public boolean cancelTask(String taskIdString) {
         try {
             LOGGER.info("Cancelling task with id: {}", taskIdString);
-            CancelTasksRequest request = new CancelTasksRequest.Builder()
-                    .withTaskId(new org.elasticsearch.client.tasks.TaskId(taskIdString))
-                    .withWaitForCompletion(false)
-                    .build();
+            CancelTasksRequest request = new CancelTasksRequest();
+            request.setTaskId(new TaskId(taskIdString));
             CancelTasksResponse response = client.tasks().cancel(request, RequestOptions.DEFAULT);
-            List<org.elasticsearch.client.tasks.TaskInfo> taskInfoList = response.getTasks();
+            List<TaskInfo> taskInfoList = response.getTasks();
             if (!taskInfoList.isEmpty()) {
                 LOGGER.info("Successfully cancelled task with id {}", taskIdString);
                 return true;
