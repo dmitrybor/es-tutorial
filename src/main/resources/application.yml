@@ -12,12 +12,30 @@ server:
 search:
   host: localhost
   port: 9200
-  batchSize: 100
-  trackingTaskRequestInterval: PT10S
-  work:
-    indexName: work-index
-    configFile: work_index.json
+  batchSize: 2000
+  trackingTaskRequestInterval: PT30S
   product:
     indexName: product
     configFile: product-index-2.json
+  recording:
+    indexName: song-index-dev
+    configFile: recording_index.json
+  contact:
+    indexName: contact-index-dev
+    configFile: contact_index.json
+  project:
+    indexName: project-index-dev
+    configFile: project_index.json
+  internalUser:
+    indexName: internal-user-index-dev
+    configFile: internal_user_index.json
+  group:
+    indexName: group-index
+    configFile: group_index.json
+  work:
+    indexName: work-index
+    configFile: work_index.json
+  company:
+    indexName: company-index-dev
+    configFile: company_index.json
 
