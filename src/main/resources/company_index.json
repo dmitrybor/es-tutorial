@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  },
+  "mappings": {
+    "properties": {
+      "gls_id": {
+        "type": "integer"
+      },
+      "first_name": {
+        "type": "text",
+        "copy_to": "full_data"
+      },
+      "last_name": {
+        "type": "text",
+        "copy_to": "full_data"
+      },
+      "email": {
+        "type": "text",
+        "copy_to": "full_data"
+      },
+      "phone": {
+        "copy_to": "full_data",
+        "type": "text"
+      },
+      "company": {
+        "copy_to": "full_data",
+        "type": "text"
+      },
+      "full_data": {
+        "type": "text",
+        "analyzer": "standard",
+        "fields": {
+          "suggestion": {
+            "type": "completion",
+            "analyzer": "standard"
+          }
+        }
+      }
+    }
+  }
+}

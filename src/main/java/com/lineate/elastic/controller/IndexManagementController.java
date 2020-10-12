@@ -1,7 +1,13 @@
 package com.lineate.elastic.controller;
 
+import com.lineate.elastic.configuration.CompanySearchProperties;
+import com.lineate.elastic.configuration.ContactSearchProperties;
 import com.lineate.elastic.configuration.EntitySearchProperties;
+import com.lineate.elastic.configuration.GroupSearchProperties;
+import com.lineate.elastic.configuration.InternalUserSearchProperties;
 import com.lineate.elastic.configuration.ProductSearchProperties;
+import com.lineate.elastic.configuration.ProjectSearchProperties;
+import com.lineate.elastic.configuration.RecordingSearchProperties;
 import com.lineate.elastic.configuration.WorkSearchProperties;
 import com.lineate.elastic.dto.StatusResponse;
 import com.lineate.elastic.dto.TaskStatusResponse;
@@ -27,10 +33,23 @@ public class IndexManagementController {
 
     public IndexManagementController(IndexManagementService indexManagementService,
                                      ProductSearchProperties productSearchProperties,
-                                     WorkSearchProperties workSearchProperties) {
+                                     RecordingSearchProperties recordingSearchProperties,
+                                     ContactSearchProperties contactSearchProperties,
+                                     ProjectSearchProperties projectSearchProperties,
+                                     InternalUserSearchProperties internalUserSearchProperties,
+                                     GroupSearchProperties groupSearchProperties,
+                                     WorkSearchProperties workSearchProperties,
+                                     CompanySearchProperties companySearchProperties) {
         this.indexManagementService = indexManagementService;
         this.indexerProperties.put(DataIndexerTypes.PRODUCTS, productSearchProperties);
+        this.indexerProperties.put(DataIndexerTypes.RECORDINGS, recordingSearchProperties);
+        this.indexerProperties.put(DataIndexerTypes.CONTACTS, contactSearchProperties);
+        this.indexerProperties.put(DataIndexerTypes.PROJECTS, projectSearchProperties);
+        this.indexerProperties.put(DataIndexerTypes.INTERNAL_USERS, internalUserSearchProperties);
+        this.indexerProperties.put(DataIndexerTypes.GROUPS, groupSearchProperties);
         this.indexerProperties.put(DataIndexerTypes.WORKS, workSearchProperties);
+        this.indexerProperties.put(DataIndexerTypes.COMPANIES, companySearchProperties);
+
     }
 
     @PutMapping("/{indexerType}")
