@@ -16,8 +16,8 @@ public class ElasticApiConfiguration {
     }
 
     @Bean
-    public ElasticDocApi getElasticDocApi(RestHighLevelClient client) {
-        return new ElasticDocApi(client);
+    public ElasticDocApi getElasticDocApi(RestHighLevelClient client, SearchProperties searchProperties) {
+        return new ElasticDocApi(client, searchProperties);
     }
 
     @Bean

@@ -2,6 +2,7 @@ package com.lineate.elastic.api.doc;
 
 import com.lineate.elastic.ElasticApp;
 import com.lineate.elastic.api.index.ElasticIndexApi;
+import com.lineate.elastic.configuration.SearchProperties;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
@@ -15,7 +16,8 @@ public class DocApp extends ElasticApp {
     public static void main(String[] args) throws IOException {
         try (final RestHighLevelClient client = createElasticClient()) {
             ElasticIndexApi elasticIndexApi = new ElasticIndexApi(client);
-            ElasticDocApi elasticDocApi = new ElasticDocApi(client);
+            SearchProperties searchProperties = createSearchProperties();
+            ElasticDocApi elasticDocApi = new ElasticDocApi(client, searchProperties);
 
             String baseIndexName = "product";
             String firstIndexName = baseIndexName + ZonedDateTime.now()

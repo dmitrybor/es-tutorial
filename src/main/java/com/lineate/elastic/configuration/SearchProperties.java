@@ -12,6 +12,7 @@ public class SearchProperties {
     private String host;
     private int port;
     private int batchSize;
+    private String trackingTaskRequestInterval;
 
     public String getHost() {
         return host;
@@ -35,6 +36,14 @@ public class SearchProperties {
 
     public void setBatchSize(int batchSize) {
         this.batchSize = batchSize;
+    }
+
+    public String getTrackingTaskRequestInterval() {
+        return trackingTaskRequestInterval;
+    }
+
+    public void setTrackingTaskRequestInterval(String trackingTaskRequestInterval) {
+        this.trackingTaskRequestInterval = trackingTaskRequestInterval;
     }
 }
 

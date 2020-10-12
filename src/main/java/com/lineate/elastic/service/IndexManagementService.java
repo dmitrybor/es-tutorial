@@ -9,19 +9,23 @@ import com.lineate.elastic.api.task.ElasticTaskApi;
 import com.lineate.elastic.configuration.EntitySearchProperties;
 import com.lineate.elastic.dto.StatusResponse;
 import com.lineate.elastic.dto.TaskStatusResponse;
+import com.lineate.elastic.model.TrackedReindexingTask;
 import org.elasticsearch.client.tasks.GetTaskResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class IndexManagementService {
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexManagementService.class);
-    private final ConcurrentHashMap<String, String> elasticTasks = new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<String, TrackedReindexingTask> elasticTasks = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
     private final ElasticIndexApi indexApi;
     private final ElasticDocApi docApi;
@@ -70,6 +74,12 @@ public class IndexManagementService {
                     "Could not find index.");
         }
 
+        TrackedReindexingTask trackedReindexingTask = elasticTasks.getOrDefault(properties.getIndexName(), null);
+        if (trackedReindexingTask != null && trackedReindexingTask.isTracking()) {
+            return new StatusResponse(StatusResponse.Status.ERROR,
+                    "Reindexing task is already running for the index.");
+        }
+
         String newIndexName = properties.getIndexName() + ZonedDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
         if (!indexApi.createIndex(newIndexName, properties.getConfigFile())) {
@@ -77,33 +87,28 @@ public class IndexManagementService {
                     "Could not create empty index to reindex documents into.");
         }
 
-        String taskId = elasticTasks.getOrDefault(properties.getIndexName(), null);
-        if (taskId != null) {
-            GetTaskResponse taskInfoResponse = taskApi.getTaskInfo(taskId, false);
-            if (!taskInfoResponse.isCompleted()) {
-                return new StatusResponse(StatusResponse.Status.ERROR,
-                        "Reindexing task is already running for the index.");
-            }
-            elasticTasks.remove(properties.getIndexName());
-        }
-
-        taskId = docApi.submitReindexTask(properties.getIndexName(), newIndexName);
+        String taskId = docApi.submitReindexTask(properties.getIndexName(), newIndexName);
         if (taskId == null) {
             indexApi.deleteIndex(newIndexName);
             return new StatusResponse(StatusResponse.Status.ERROR,
                     "Could not submit reindexing task");
         }
 
-        elasticTasks.put(properties.getIndexName(), taskId);
+        String oldIndexName = indexApi.getIndexNameByAlias(properties.getIndexName());
+        trackedReindexingTask = new TrackedReindexingTask(oldIndexName, newIndexName, properties.getIndexName(), taskId);
+        elasticTasks.put(properties.getIndexName(), trackedReindexingTask);
         return StatusResponse.OK;
     }
 
     public StatusResponse cancelReindexing(EntitySearchProperties properties) {
-        String taskId = elasticTasks.getOrDefault(properties.getIndexName(), null);
-        if (taskId == null) {
+
+        TrackedReindexingTask trackedReindexingTask = elasticTasks.getOrDefault(properties.getIndexName(), null);
+        if (trackedReindexingTask == null || !trackedReindexingTask.isTracking()) {
             return new StatusResponse(StatusResponse.Status.ERROR,
                     "There are no tasks running for the index");
         }
+
+        String taskId = trackedReindexingTask.getElasticTaskId();
         if (taskApi.cancelTask(taskId)) {
             return StatusResponse.OK;
         }
@@ -113,11 +118,13 @@ public class IndexManagementService {
 
     public TaskStatusResponse getReindexingTaskStatus(EntitySearchProperties properties) {
 
-        String taskId = elasticTasks.getOrDefault(properties.getIndexName(), null);
-        if (taskId == null) {
+        TrackedReindexingTask trackedReindexingTask = elasticTasks.getOrDefault(properties.getIndexName(), null);
+
+        if (trackedReindexingTask == null) {
             return new TaskStatusResponse();
         }
 
+        String taskId = trackedReindexingTask.getElasticTaskId();
         GetTaskResponse taskInfoResponse = taskApi.getTaskInfo(taskId, false);
         TaskStatusResponse taskStatusResponse = new TaskStatusResponse();
         taskStatusResponse.setCompleted(taskInfoResponse.isCompleted());
@@ -138,5 +145,57 @@ public class IndexManagementService {
         }
 
         return taskStatusResponse;
+    }
+
+    @Scheduled(fixedRateString = "${search.trackingTaskRequestInterval}")
+    private void manageReindexingTask() {
+        elasticTasks.values()
+                .stream()
+                .filter(TrackedReindexingTask::isTracking)
+                .forEach(trackedReindexingTask -> {
+                    String taskId = trackedReindexingTask.getElasticTaskId();
+                    GetTaskResponse getTaskResponse = taskApi.getTaskInfo(taskId, false);
+                    if (getTaskResponse == null) {
+                        LOGGER.warn("Could not get response while tracking task {}",
+                                trackedReindexingTask.getElasticTaskId());
+                        return;
+                    }
+                    if (getTaskResponse.isCompleted()) {
+                        JsonNode canceled;
+                        try {
+                            JsonNode statusJson;
+                            statusJson = objectMapper.readTree(getTaskResponse.getTaskInfo().getStatus().toString());
+                            canceled = statusJson.get("canceled");
+                        } catch (JsonProcessingException e) {
+                            LOGGER.warn("Error occurred while parsing task status", e);
+                            return;
+                        }
+                        if (canceled == null) {
+                            LOGGER.info("Reindexing completed for task {}", trackedReindexingTask.getElasticTaskId());
+
+                            LOGGER.info("Deleting old index {}", trackedReindexingTask.getSrcIndexName());
+                            indexApi.deleteIndex(trackedReindexingTask.getSrcIndexName());
+
+                            LOGGER.info("Adding alias {} to index {}.",
+                                    trackedReindexingTask.getIndexAlias(),
+                                    trackedReindexingTask.getDstIndexName());
+
+                            if (!indexApi.addAliasToIndex(trackedReindexingTask.getDstIndexName(),
+                                    trackedReindexingTask.getIndexAlias())) {
+                                LOGGER.warn("Could not add alias {} to {}. Will try again later.",
+                                        trackedReindexingTask.getIndexAlias(),
+                                        trackedReindexingTask.getDstIndexName());
+                                return;
+                            }
+                        } else {
+                            LOGGER.info("Reindexing task {} was canceled. Deleting newly created index {}.",
+                                    trackedReindexingTask.getElasticTaskId(),
+                                    trackedReindexingTask.getDstIndexName());
+                            indexApi.deleteIndex(trackedReindexingTask.getDstIndexName());
+                        }
+
+                        trackedReindexingTask.setTracking(false);
+                    }
+                });
     }
 }
