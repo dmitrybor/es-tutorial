@@ -3,6 +3,7 @@ package com.lineate.elastic.api.task;
 import com.lineate.elastic.ElasticApp;
 import com.lineate.elastic.api.doc.ElasticDocApi;
 import com.lineate.elastic.api.index.ElasticIndexApi;
+import com.lineate.elastic.configuration.SearchProperties;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.tasks.GetTaskResponse;
 
@@ -19,9 +20,9 @@ public class TaskApp extends ElasticApp {
     public static void main(String[] args) throws IOException, InterruptedException {
         try (RestHighLevelClient client = createElasticClient()) {
             ElasticIndexApi elasticIndexApi = new ElasticIndexApi(client);
-            ElasticDocApi elasticDocApi = new ElasticDocApi(client);
+            SearchProperties searchProperties = createSearchProperties();
+            ElasticDocApi elasticDocApi = new ElasticDocApi(client, searchProperties);
             ElasticTaskApi elasticTaskApi = new ElasticTaskApi(client);
-
 
             if (!elasticIndexApi.checkIndexExists(indexName)) {
                 initIndex(elasticIndexApi, elasticDocApi, indexName, newIndexContentFileName);
@@ -63,9 +64,6 @@ public class TaskApp extends ElasticApp {
 
         elasticDocApi.bulkIndexFromNdJsonFile(initIndexName, indexContentFileName);
 
-        if (!elasticIndexApi.addAliasToIndex(initIndexName, indexName)) {
-            return false;
-        }
-        return true;
+        return elasticIndexApi.addAliasToIndex(initIndexName, indexName);
     }
 }

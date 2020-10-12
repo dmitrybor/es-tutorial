@@ -13,6 +13,7 @@ search:
   host: localhost
   port: 9200
   batchSize: 100
+  trackingTaskRequestInterval: PT10S
   work:
     indexName: work-index
     configFile: work_index.json

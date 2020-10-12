@@ -147,7 +147,7 @@ public class IndexManagementService {
         return taskStatusResponse;
     }
 
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(fixedRateString = "${search.trackingTaskRequestInterval}")
     private void manageReindexingTask() {
         elasticTasks.values()
                 .stream()

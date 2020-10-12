@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.lineate.elastic.api.index.ElasticIndexApi;
+import com.lineate.elastic.configuration.SearchProperties;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -30,9 +31,11 @@ import java.nio.charset.Charset;
 public class ElasticDocApi {
     private static Logger LOGGER = LoggerFactory.getLogger(ElasticIndexApi.class);
     private final RestHighLevelClient client;
+    private final SearchProperties searchProperties;
 
-    public ElasticDocApi(RestHighLevelClient client) {
+    public ElasticDocApi(RestHighLevelClient client, SearchProperties searchProperties) {
         this.client = client;
+        this.searchProperties = searchProperties;
     }
 
     public boolean reindex(final String fromIndex, final String toIndex) throws IOException {
@@ -126,7 +129,7 @@ public class ElasticDocApi {
         request.setDestIndex(toIndex);
         request.setDestVersionType(VersionType.INTERNAL);
         request.setConflicts("proceed");
-        request.setSourceBatchSize(100);
+        request.setSourceBatchSize(searchProperties.getBatchSize());
         return request;
     }
 }
