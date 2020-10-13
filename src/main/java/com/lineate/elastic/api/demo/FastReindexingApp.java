@@ -1,7 +1,8 @@
-package com.lineate.elastic;
+package com.lineate.elastic.api.demo;
 
-import com.lineate.elastic.doc.ElasticDocApi;
-import com.lineate.elastic.index.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticDocApi;
+import com.lineate.elastic.api.ElasticIndexApi;
+import com.lineate.elastic.configuration.SearchProperties;
 import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;
@@ -17,14 +18,13 @@ public class FastReindexingApp extends ElasticApp {
 
     public static void main(String[] args) throws IOException {
         try (RestHighLevelClient client = createElasticClient()) {
+            SearchProperties searchProperties = createSearchProperties();
             ElasticIndexApi elasticIndexApi = new ElasticIndexApi(client);
-            ElasticDocApi elasticDocApi = new ElasticDocApi(client);
+            ElasticDocApi elasticDocApi = new ElasticDocApi(client, searchProperties);
 
             String newIndexRealName = indexName + ZonedDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-            if (!elasticIndexApi.createIndex(newIndexRealName, indexConfigFileName)) {
-                return;
-            }
+            elasticIndexApi.createIndex(newIndexRealName, indexConfigFileName);
 
             if (elasticIndexApi.checkIndexExists(indexName)) {
                 String oldIndexRealName = indexName;

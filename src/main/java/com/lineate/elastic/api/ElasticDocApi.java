@@ -1,9 +1,10 @@
-package com.lineate.elastic.doc;
+package com.lineate.elastic.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.lineate.elastic.index.ElasticIndexApi;
+import com.lineate.elastic.configuration.SearchProperties;
+import com.lineate.elastic.exception.ElasticActionFailedException;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.ElasticsearchStatusException;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -30,12 +31,14 @@ import java.nio.charset.Charset;
 public class ElasticDocApi {
     private static Logger LOGGER = LoggerFactory.getLogger(ElasticIndexApi.class);
     private final RestHighLevelClient client;
+    private final SearchProperties searchProperties;
 
-    public ElasticDocApi(RestHighLevelClient client) {
+    public ElasticDocApi(RestHighLevelClient client, SearchProperties searchProperties) {
         this.client = client;
+        this.searchProperties = searchProperties;
     }
 
-    public boolean reindex(final String fromIndex, final String toIndex) throws IOException {
+    public void reindex(final String fromIndex, final String toIndex) {
         try {
             LOGGER.info("Reindexing documents from {} to {}", fromIndex, toIndex);
 
@@ -47,19 +50,19 @@ public class ElasticDocApi {
 
             if (bulkResponse.isTimedOut()) {
                 LOGGER.info("Could not reindex documents from {} to {}", fromIndex, toIndex);
-                return false;
-            } else {
-                LOGGER.info("Successfully reindexed {} documents from {} to {} in {} ms",
-                        bulkResponse.getTotal(), fromIndex, toIndex, bulkResponse.getTook().millis());
-                return true;
+                throw new ElasticActionFailedException("Could not reindex documents.");
             }
+            LOGGER.info("Successfully reindexed {} documents from {} to {} in {} ms",
+                    bulkResponse.getTotal(), fromIndex, toIndex, bulkResponse.getTook().millis());
+
+
         } catch (IOException | ElasticsearchException e) {
             LOGGER.warn("Error occurred while reindexing", e);
-            throw e;
+            throw new ElasticActionFailedException("Error occurred while reindexing.", e);
         }
     }
 
-    public String submitReindexTask(final String fromIndex, final String toIndex) throws IOException {
+    public String submitReindexTask(final String fromIndex, final String toIndex) {
         try {
             LOGGER.info("Submitting a task to reindex documents from {} to {}", fromIndex, toIndex);
             ReindexRequest request = prepareReindexRequest(fromIndex, toIndex);
@@ -68,8 +71,8 @@ public class ElasticDocApi {
             LOGGER.info("Reindexing task successfully submitted, task id: {}", taskId);
             return taskId;
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while submitting reindexing task", e);
-            throw e;
+            LOGGER.warn("Error occurred while submitting reindexing task.", e);
+            throw new ElasticActionFailedException("Error occurred while submitting reindexing task.", e);
         }
     }
 
@@ -126,7 +129,7 @@ public class ElasticDocApi {
         request.setDestIndex(toIndex);
         request.setDestVersionType(VersionType.INTERNAL);
         request.setConflicts("proceed");
-        request.setSourceBatchSize(100);
+        request.setSourceBatchSize(searchProperties.getBatchSize());
         return request;
     }
 }
