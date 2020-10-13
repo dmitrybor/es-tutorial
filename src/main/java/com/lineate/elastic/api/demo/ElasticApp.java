@@ -1,4 +1,4 @@
-package com.lineate.elastic;
+package com.lineate.elastic.api.demo;
 
 import com.lineate.elastic.configuration.SearchProperties;
 import org.apache.http.HttpHost;

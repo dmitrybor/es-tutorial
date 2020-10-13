@@ -1,5 +1,6 @@
-package com.lineate.elastic.api.index;
+package com.lineate.elastic.api;
 
+import com.lineate.elastic.exception.ElasticActionFailedException;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesRequest;
 import org.elasticsearch.action.admin.indices.alias.get.GetAliasesRequest;
@@ -31,7 +32,7 @@ public class ElasticIndexApi {
         this.client = client;
     }
 
-    public boolean createIndex(final String indexName, final String indexConfigFileName) {
+    public void createIndex(final String indexName, final String indexConfigFileName) {
 
         try {
             LOGGER.info("Creating index: {}", indexName);
@@ -40,7 +41,7 @@ public class ElasticIndexApi {
             try (InputStream resourceAsStream = getClass().getClassLoader().getResourceAsStream(indexConfigFileName)) {
                 if (resourceAsStream == null) {
                     LOGGER.warn("Cannot find index config file file {}", indexConfigFileName);
-                    return false;
+                    throw new ElasticActionFailedException("Cannot find index config file file");
                 }
                 byte[] bytes = resourceAsStream.readAllBytes();
                 indexConfigString = new String(bytes, Charset.defaultCharset());
@@ -52,15 +53,14 @@ public class ElasticIndexApi {
             final CreateIndexResponse createIndexResponse = client.indices().create(createRequest, RequestOptions.DEFAULT);
 
             if (!createIndexResponse.isAcknowledged()) {
-                LOGGER.warn("Create index request failed.");
-                return false;
+                LOGGER.warn("Index creation request failed.");
+                throw new ElasticActionFailedException("Index creation request failed.");
             }
             LOGGER.info("Index was successfully created.");
-            return true;
 
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error during index creation", e);
-            return false;
+            LOGGER.warn("Error occurred during index creation.", e);
+            throw new ElasticActionFailedException("Error occurred during index creation.", e);
         }
     }
 
@@ -74,12 +74,12 @@ public class ElasticIndexApi {
             return exists;
 
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while checking index existence", e);
-            return false;
+            LOGGER.warn("Error occurred while checking index existence.", e);
+            throw new ElasticActionFailedException("Error occurred while checking index existence.", e);
         }
     }
 
-    public boolean deleteIndex(final String indexName) {
+    public void deleteIndex(final String indexName) {
         try {
             LOGGER.info("Deleting index: {}", indexName);
 
@@ -88,18 +88,17 @@ public class ElasticIndexApi {
             AcknowledgedResponse deleteIndexResponse = client.indices().delete(request, RequestOptions.DEFAULT);
             if (deleteIndexResponse.isAcknowledged()) {
                 LOGGER.info("Index {} deleted", indexName);
-                return true;
             } else {
                 LOGGER.info("Could not delete index {}", indexName);
-                return false;
+                throw new ElasticActionFailedException("Could not delete index.");
             }
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while deleting index", e);
-            return false;
+            LOGGER.warn("Error occurred while deleting index.", e);
+            throw new ElasticActionFailedException("Error occurred while deleting index.", e);
         }
     }
 
-    public boolean addAliasToIndex(final String indexName, final String alias) {
+    public void addAliasToIndex(final String indexName, final String alias) {
         try {
             LOGGER.info("Adding alias {} to index {}", alias, indexName);
 
@@ -115,19 +114,18 @@ public class ElasticIndexApi {
 
             if (indicesAliasesResponse.isAcknowledged()) {
                 LOGGER.info("Alias was successfully added to index");
-                return true;
             } else {
-                LOGGER.info("Could not add alias to index");
-                return false;
+                LOGGER.info("Could not add alias to index.");
+                throw new ElasticActionFailedException("Could not add alias to index.");
             }
 
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while adding alias index", e);
-            return false;
+            LOGGER.warn("Error occurred while adding alias index.", e);
+            throw new ElasticActionFailedException("Error occurred while adding alias index.", e);
         }
     }
 
-    public boolean removeAliasFromIndex(final String indexName, final String alias) {
+    public void removeAliasFromIndex(final String indexName, final String alias) {
         try {
             LOGGER.info("Removing alias {} from index {}", alias, indexName);
 
@@ -142,15 +140,14 @@ public class ElasticIndexApi {
                     client.indices().updateAliases(request, RequestOptions.DEFAULT);
 
             if (indicesAliasesResponse.isAcknowledged()) {
-                LOGGER.info("Alias was successfully removed from index");
-                return true;
+                LOGGER.info("Alias was successfully removed from index.");
             } else {
-                LOGGER.info("Could not remove alias from index");
-                return false;
+                LOGGER.info("Could not remove alias from index.");
+                throw new ElasticActionFailedException("Could not remove alias from index.");
             }
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while removing alias from index", e);
-            return false;
+            LOGGER.warn("Error occurred while removing alias from index.", e);
+            throw new ElasticActionFailedException("Error occurred while removing alias from index.", e);
         }
     }
 
@@ -161,8 +158,8 @@ public class ElasticIndexApi {
             request.aliases(alias);
             return client.indices().existsAlias(request, RequestOptions.DEFAULT);
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while checking alias for index", e);
-            return false;
+            LOGGER.warn("Error occurred while checking alias for index.", e);
+            throw new ElasticActionFailedException("Error occurred while checking alias for index.", e);
         }
     }
 
@@ -178,14 +175,13 @@ public class ElasticIndexApi {
             Iterator<String> indexNamesIterator = response.getIndexToSettings().keysIt();
             if (indexNamesIterator.hasNext()) {
                 return indexNamesIterator.next();
-            } else {
-                LOGGER.info("Could not get index name by alias");
-                return null;
             }
+            LOGGER.info("Could not get index name by alias.");
+            throw new ElasticActionFailedException("Could not get index name by alias.");
 
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while getting aliases for index", e);
-            return null;
+            LOGGER.warn("Error occurred while getting aliases for index.", e);
+            throw new ElasticActionFailedException("Error occurred while getting aliases for index.", e);
         }
     }
 }

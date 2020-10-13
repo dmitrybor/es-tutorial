@@ -1,6 +1,6 @@
-package com.lineate.elastic.api.index;
+package com.lineate.elastic.api.demo;
 
-import com.lineate.elastic.ElasticApp;
+import com.lineate.elastic.api.ElasticIndexApi;
 import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;

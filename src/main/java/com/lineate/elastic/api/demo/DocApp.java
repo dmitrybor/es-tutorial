@@ -1,7 +1,7 @@
-package com.lineate.elastic.api.doc;
+package com.lineate.elastic.api.demo;
 
-import com.lineate.elastic.ElasticApp;
-import com.lineate.elastic.api.index.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticDocApi;
+import com.lineate.elastic.api.ElasticIndexApi;
 import com.lineate.elastic.configuration.SearchProperties;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;

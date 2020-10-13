@@ -3,12 +3,15 @@ package com.lineate.elastic.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.lineate.elastic.api.doc.ElasticDocApi;
-import com.lineate.elastic.api.index.ElasticIndexApi;
-import com.lineate.elastic.api.task.ElasticTaskApi;
+import com.lineate.elastic.api.ElasticDocApi;
+import com.lineate.elastic.api.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticTaskApi;
 import com.lineate.elastic.configuration.EntitySearchProperties;
 import com.lineate.elastic.dto.StatusResponse;
 import com.lineate.elastic.dto.TaskStatusResponse;
+import com.lineate.elastic.exception.ElasticActionFailedException;
+import com.lineate.elastic.exception.ElasticActionForbiddenException;
+import com.lineate.elastic.exception.ElasticEntityNotFoundException;
 import com.lineate.elastic.model.TrackedReindexingTask;
 import org.elasticsearch.client.tasks.GetTaskResponse;
 import org.slf4j.Logger;
@@ -43,55 +46,43 @@ public class IndexManagementService {
         LOGGER.info("Creating index with name {} using config file {}",
                 properties.getIndexName(), properties.getConfigFile());
         if (indexApi.checkIndexExists(properties.getIndexName())) {
-            return new StatusResponse(StatusResponse.Status.ERROR, "Index already exists");
+            throw new ElasticActionForbiddenException("Index already exists");
         }
         String newIndexName = properties.getIndexName() + ZonedDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-        if (indexApi.createIndex(newIndexName, properties.getConfigFile())
-                && indexApi.addAliasToIndex(newIndexName, properties.getIndexName())) {
-            return StatusResponse.OK;
-        }
-        return new StatusResponse(StatusResponse.Status.ERROR, "Could not create index");
+        indexApi.createIndex(newIndexName, properties.getConfigFile());
+        indexApi.addAliasToIndex(newIndexName, properties.getIndexName());
+        return StatusResponse.OK;
     }
 
     public StatusResponse deleteIndex(EntitySearchProperties properties) {
         LOGGER.info("Deleting index {}", properties.getIndexName());
-
         String indexRealName = indexApi.getIndexNameByAlias(properties.getIndexName());
-        if (indexRealName != null) {
-            if (indexApi.deleteIndex(indexRealName)) {
-                return StatusResponse.OK;
-            }
-        }
-        return new StatusResponse(StatusResponse.Status.ERROR, "Could not delete index");
+        indexApi.deleteIndex(indexRealName);
+        return StatusResponse.OK;
     }
 
     public StatusResponse reindex(EntitySearchProperties properties) {
-        LOGGER.info("Starting reindex for {}", properties.getIndexName());
+        LOGGER.info("Starting reindexing for {}", properties.getIndexName());
 
         if (!indexApi.checkIndexExists(properties.getIndexName())) {
-            return new StatusResponse(StatusResponse.Status.ERROR,
-                    "Could not find index.");
+            throw new ElasticEntityNotFoundException("Could not find index");
         }
 
         TrackedReindexingTask trackedReindexingTask = elasticTasks.getOrDefault(properties.getIndexName(), null);
         if (trackedReindexingTask != null && trackedReindexingTask.isTracking()) {
-            return new StatusResponse(StatusResponse.Status.ERROR,
-                    "Reindexing task is already running for the index.");
+            throw new ElasticActionForbiddenException("Reindexing task is already running for the index.");
         }
 
         String newIndexName = properties.getIndexName() + ZonedDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-        if (!indexApi.createIndex(newIndexName, properties.getConfigFile())) {
-            return new StatusResponse(StatusResponse.Status.ERROR,
-                    "Could not create empty index to reindex documents into.");
-        }
-
-        String taskId = docApi.submitReindexTask(properties.getIndexName(), newIndexName);
-        if (taskId == null) {
+        indexApi.createIndex(newIndexName, properties.getConfigFile());
+        String taskId;
+        try {
+            taskId = docApi.submitReindexTask(properties.getIndexName(), newIndexName);
+        } catch (ElasticActionFailedException ex) {
             indexApi.deleteIndex(newIndexName);
-            return new StatusResponse(StatusResponse.Status.ERROR,
-                    "Could not submit reindexing task");
+            throw ex;
         }
 
         String oldIndexName = indexApi.getIndexNameByAlias(properties.getIndexName());
@@ -101,27 +92,25 @@ public class IndexManagementService {
     }
 
     public StatusResponse cancelReindexing(EntitySearchProperties properties) {
+        LOGGER.info("Canceling task for reindexing {}", properties.getIndexName());
 
         TrackedReindexingTask trackedReindexingTask = elasticTasks.getOrDefault(properties.getIndexName(), null);
         if (trackedReindexingTask == null || !trackedReindexingTask.isTracking()) {
-            return new StatusResponse(StatusResponse.Status.ERROR,
-                    "There are no tasks running for the index");
+            throw new ElasticEntityNotFoundException("There are no tasks running for the index");
         }
 
         String taskId = trackedReindexingTask.getElasticTaskId();
-        if (taskApi.cancelTask(taskId)) {
-            return StatusResponse.OK;
-        }
-        return new StatusResponse(StatusResponse.Status.ERROR,
-                "Could not cancel task");
+        taskApi.cancelTask(taskId);
+        return StatusResponse.OK;
     }
 
     public TaskStatusResponse getReindexingTaskStatus(EntitySearchProperties properties) {
+        LOGGER.info("Retrieving reindexing task status for {}", properties.getIndexName());
 
         TrackedReindexingTask trackedReindexingTask = elasticTasks.getOrDefault(properties.getIndexName(), null);
 
         if (trackedReindexingTask == null) {
-            return new TaskStatusResponse();
+            throw new ElasticEntityNotFoundException("Elastic search task not found");
         }
 
         String taskId = trackedReindexingTask.getElasticTaskId();
@@ -153,48 +142,45 @@ public class IndexManagementService {
                 .stream()
                 .filter(TrackedReindexingTask::isTracking)
                 .forEach(trackedReindexingTask -> {
-                    String taskId = trackedReindexingTask.getElasticTaskId();
-                    GetTaskResponse getTaskResponse = taskApi.getTaskInfo(taskId, false);
-                    if (getTaskResponse == null) {
-                        LOGGER.warn("Could not get response while tracking task {}",
-                                trackedReindexingTask.getElasticTaskId());
-                        return;
-                    }
-                    if (getTaskResponse.isCompleted()) {
-                        JsonNode canceled;
-                        try {
-                            JsonNode statusJson;
-                            statusJson = objectMapper.readTree(getTaskResponse.getTaskInfo().getStatus().toString());
-                            canceled = statusJson.get("canceled");
-                        } catch (JsonProcessingException e) {
-                            LOGGER.warn("Error occurred while parsing task status", e);
-                            return;
-                        }
-                        if (canceled == null) {
-                            LOGGER.info("Reindexing completed for task {}", trackedReindexingTask.getElasticTaskId());
+                    try {
+                        String taskId = trackedReindexingTask.getElasticTaskId();
+                        GetTaskResponse getTaskResponse;
+                        getTaskResponse = taskApi.getTaskInfo(taskId, false);
 
-                            LOGGER.info("Deleting old index {}", trackedReindexingTask.getSrcIndexName());
-                            indexApi.deleteIndex(trackedReindexingTask.getSrcIndexName());
+                        if (getTaskResponse.isCompleted()) {
 
-                            LOGGER.info("Adding alias {} to index {}.",
-                                    trackedReindexingTask.getIndexAlias(),
-                                    trackedReindexingTask.getDstIndexName());
+                            JsonNode statusJson = objectMapper.readTree(getTaskResponse.getTaskInfo().getStatus().toString());
+                            JsonNode canceled = statusJson.get("canceled");
 
-                            if (!indexApi.addAliasToIndex(trackedReindexingTask.getDstIndexName(),
-                                    trackedReindexingTask.getIndexAlias())) {
-                                LOGGER.warn("Could not add alias {} to {}. Will try again later.",
+                            if (canceled == null) {
+                                LOGGER.info("Reindexing completed for task {}", trackedReindexingTask.getElasticTaskId());
+
+                                LOGGER.info("Deleting old index {}", trackedReindexingTask.getSrcIndexName());
+                                indexApi.deleteIndex(trackedReindexingTask.getSrcIndexName());
+
+                                LOGGER.info("Adding alias {} to index {}.",
                                         trackedReindexingTask.getIndexAlias(),
                                         trackedReindexingTask.getDstIndexName());
-                                return;
-                            }
-                        } else {
-                            LOGGER.info("Reindexing task {} was canceled. Deleting newly created index {}.",
-                                    trackedReindexingTask.getElasticTaskId(),
-                                    trackedReindexingTask.getDstIndexName());
-                            indexApi.deleteIndex(trackedReindexingTask.getDstIndexName());
-                        }
 
-                        trackedReindexingTask.setTracking(false);
+                                indexApi.addAliasToIndex(trackedReindexingTask.getDstIndexName(),
+                                        trackedReindexingTask.getIndexAlias());
+                            } else {
+                                LOGGER.info("Reindexing task {} was canceled. Deleting newly created index {}.",
+                                        trackedReindexingTask.getElasticTaskId(),
+                                        trackedReindexingTask.getDstIndexName());
+                                try {
+                                    indexApi.deleteIndex(trackedReindexingTask.getDstIndexName());
+                                } catch (ElasticActionFailedException e) {
+                                    LOGGER.warn("Could not clean up after reindexing cancellation.");
+                                }
+                            }
+                            trackedReindexingTask.setTracking(false);
+                        }
+                    } catch (ElasticActionFailedException e) {
+                        LOGGER.warn("Error occurred while tracking task {}", trackedReindexingTask.getElasticTaskId());
+                    } catch (JsonProcessingException e) {
+                        LOGGER.warn("Parsing error occurred while tracking task {}",
+                                trackedReindexingTask.getElasticTaskId(), e);
                     }
                 });
     }

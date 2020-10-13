@@ -1,8 +1,8 @@
 package com.lineate.elastic.configuration;
 
-import com.lineate.elastic.api.doc.ElasticDocApi;
-import com.lineate.elastic.api.index.ElasticIndexApi;
-import com.lineate.elastic.api.task.ElasticTaskApi;
+import com.lineate.elastic.api.ElasticDocApi;
+import com.lineate.elastic.api.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticTaskApi;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

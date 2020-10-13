@@ -1,8 +1,8 @@
-package com.lineate.elastic.api.task;
+package com.lineate.elastic.api.demo;
 
-import com.lineate.elastic.ElasticApp;
-import com.lineate.elastic.api.doc.ElasticDocApi;
-import com.lineate.elastic.api.index.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticDocApi;
+import com.lineate.elastic.api.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticTaskApi;
 import com.lineate.elastic.configuration.SearchProperties;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.tasks.GetTaskResponse;
@@ -30,9 +30,7 @@ public class TaskApp extends ElasticApp {
 
             String newIndexRealName = indexName + ZonedDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-            if (!elasticIndexApi.createIndex(newIndexRealName, indexConfigFileName)) {
-                return;
-            }
+            elasticIndexApi.createIndex(newIndexRealName, indexConfigFileName);
 
             String oldIndexRealName = indexName;
             if (elasticIndexApi.checkIndexHasAlias(indexName, indexName)) {
@@ -52,18 +50,16 @@ public class TaskApp extends ElasticApp {
         }
     }
 
-    public static boolean initIndex(final ElasticIndexApi elasticIndexApi,
+    public static void initIndex(final ElasticIndexApi elasticIndexApi,
                                     final ElasticDocApi elasticDocApi,
                                     final String indexBaseName,
                                     final String indexContentFileName) throws IOException {
         String initIndexName = indexBaseName + ZonedDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + "init";
-        if (!elasticIndexApi.createIndex(initIndexName, indexConfigFileName)) {
-            return false;
-        }
+        elasticIndexApi.createIndex(initIndexName, indexConfigFileName);
 
         elasticDocApi.bulkIndexFromNdJsonFile(initIndexName, indexContentFileName);
 
-        return elasticIndexApi.addAliasToIndex(initIndexName, indexName);
+        elasticIndexApi.addAliasToIndex(initIndexName, indexName);
     }
 }

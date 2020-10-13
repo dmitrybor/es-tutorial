@@ -6,8 +6,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class FastReindexingSpringApp {
+public class IndexManagementApp {
     public static void main(String[] args) {
-        SpringApplication.run(FastReindexingSpringApp.class, args);
+        SpringApplication.run(IndexManagementApp.class, args);
     }
 }

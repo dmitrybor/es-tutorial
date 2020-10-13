@@ -1,5 +1,6 @@
-package com.lineate.elastic.api.task;
+package com.lineate.elastic.api;
 
+import com.lineate.elastic.exception.ElasticActionFailedException;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksRequest;
 import org.elasticsearch.action.admin.cluster.node.tasks.cancel.CancelTasksResponse;
@@ -35,17 +36,17 @@ public class ElasticTaskApi {
                 TaskInfo taskInfo = response.getTaskInfo();
                 LOGGER.info("Successfully retrieved info for task. Completed {}, Status {}", response.isCompleted(), taskInfo.toString());
                 return response;
-            } else {
-                LOGGER.info("Could not retrieve info for task {}", taskIdString);
-                return null;
             }
+            LOGGER.info("Could not retrieve info for task {}", taskIdString);
+            throw new ElasticActionFailedException("Could not retrieve info for task.");
+
         } catch (IOException | ElasticsearchException e) {
-            LOGGER.warn("Error occurred while retrieving info for a task", e);
-            return null;
+            LOGGER.warn("Error occurred while retrieving info for a task.", e);
+            throw new ElasticActionFailedException("Error occurred while retrieving info for a task", e);
         }
     }
 
-    public boolean cancelTask(String taskIdString) {
+    public void cancelTask(String taskIdString) {
         try {
             LOGGER.info("Cancelling task with id: {}", taskIdString);
             CancelTasksRequest request = new CancelTasksRequest();
@@ -54,14 +55,12 @@ public class ElasticTaskApi {
             List<TaskInfo> taskInfoList = response.getTasks();
             if (!taskInfoList.isEmpty()) {
                 LOGGER.info("Successfully cancelled task with id {}", taskIdString);
-                return true;
             } else {
                 LOGGER.info("No tasks were cancelled");
-                return false;
             }
-        } catch (IOException e) {
-            LOGGER.warn("Error occurred while canceling a task", e);
-            return false;
+        } catch (IOException | ElasticsearchException e) {
+            LOGGER.warn("Error occurred while canceling a task.", e);
+            throw new ElasticActionFailedException("Error occurred while canceling a task.", e);
         }
     }
 }

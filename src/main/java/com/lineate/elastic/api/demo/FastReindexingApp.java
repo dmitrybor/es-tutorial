@@ -1,7 +1,7 @@
-package com.lineate.elastic;
+package com.lineate.elastic.api.demo;
 
-import com.lineate.elastic.api.doc.ElasticDocApi;
-import com.lineate.elastic.api.index.ElasticIndexApi;
+import com.lineate.elastic.api.ElasticDocApi;
+import com.lineate.elastic.api.ElasticIndexApi;
 import com.lineate.elastic.configuration.SearchProperties;
 import org.elasticsearch.client.RestHighLevelClient;
 
@@ -24,9 +24,7 @@ public class FastReindexingApp extends ElasticApp {
 
             String newIndexRealName = indexName + ZonedDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
-            if (!elasticIndexApi.createIndex(newIndexRealName, indexConfigFileName)) {
-                return;
-            }
+            elasticIndexApi.createIndex(newIndexRealName, indexConfigFileName);
 
             if (elasticIndexApi.checkIndexExists(indexName)) {
                 String oldIndexRealName = indexName;
