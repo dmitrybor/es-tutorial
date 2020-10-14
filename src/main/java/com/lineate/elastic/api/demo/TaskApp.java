@@ -51,9 +51,9 @@ public class TaskApp extends ElasticApp {
     }
 
     public static void initIndex(final ElasticIndexApi elasticIndexApi,
-                                    final ElasticDocApi elasticDocApi,
-                                    final String indexBaseName,
-                                    final String indexContentFileName) throws IOException {
+                                 final ElasticDocApi elasticDocApi,
+                                 final String indexBaseName,
+                                 final String indexContentFileName) throws IOException {
         String initIndexName = indexBaseName + ZonedDateTime.now()
                 .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")) + "init";
         elasticIndexApi.createIndex(initIndexName, indexConfigFileName);
