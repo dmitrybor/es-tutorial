@@ -1,8 +1,10 @@
 package com.lineate.elastic.api.demo.search;
 
 import com.lineate.elastic.api.ElasticSearchMatchApi;
+import com.lineate.elastic.api.FieldSortSetting;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.Operator;
+import org.elasticsearch.search.sort.SortOrder;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,6 +26,22 @@ public class SearchMatchQueryApp extends SearchApp {
                     .map(SearchApp::parseProductFromJson)
                     .filter(Objects::nonNull)
                     .forEach(product -> System.out.println(product.getName()));
+
+            System.out.println("-----------------------------");
+            System.out.println("Products that have \"Wine\" OR \"Red\" OR both in the name " +
+                    "sorted by in_stock (desc) and then by date created (asc)");
+            List<String> productsWithWineOrRedInNameSorted =
+                    elasticSearchMatchApi.performMatchQuery(indexName, "name", "wine Red", Operator.OR,
+                            List.of(new FieldSortSetting("in_stock", SortOrder.DESC),
+                                    new FieldSortSetting("created", SortOrder.ASC)));
+            productsWithWineOrRedInNameSorted
+                    .stream()
+                    .map(SearchApp::parseProductFromJson)
+                    .filter(Objects::nonNull)
+                    .forEach(product ->
+                            System.out.println("Name:" + product.getName()
+                            + " | in_stock: " + product.getInStock()
+                            + " | created: " + product.getCreated()));
 
             System.out.println("-----------------------------");
             System.out.println("Products that have \"Wine\" AND \"Red\" in the name");

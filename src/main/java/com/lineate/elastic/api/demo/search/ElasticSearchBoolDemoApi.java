@@ -1,6 +1,7 @@
 package com.lineate.elastic.api.demo.search;
 
 import com.lineate.elastic.api.ElasticSearchApi;
+import com.lineate.elastic.api.FieldSortSetting;
 import com.lineate.elastic.exception.ElasticActionFailedException;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -12,6 +13,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public class ElasticSearchBoolDemoApi extends ElasticSearchApi {
@@ -25,7 +27,14 @@ public class ElasticSearchBoolDemoApi extends ElasticSearchApi {
     public List<String> searchTextAndLowerBound(final String index,
                                                 final String textFieldName, final String textToSearch,
                                                 final String integerFieldName, final int lowerBound) {
+        return searchTextAndLowerBound(index, textFieldName, textToSearch,
+                integerFieldName, lowerBound, Collections.emptyList());
+    }
 
+    public List<String> searchTextAndLowerBound(final String index,
+                                                final String textFieldName, final String textToSearch,
+                                                final String integerFieldName, final int lowerBound,
+                                                final List<FieldSortSetting> sortSettings) {
         try {
             BoolQueryBuilder boolQueryBuilder = QueryBuilders.boolQuery();
 
@@ -36,7 +45,8 @@ public class ElasticSearchBoolDemoApi extends ElasticSearchApi {
             greaterThanLowerBound.gte(lowerBound);
             boolQueryBuilder.filter(greaterThanLowerBound);
 
-            return performSearchQuery(index, boolQueryBuilder);
+            return performSearchQuery(index, boolQueryBuilder, sortSettings);
+
         } catch (IOException | ElasticsearchException ex) {
             LOGGER.warn("Error occurred while performing compound query.", ex);
             throw new ElasticActionFailedException("Error occurred while performing compound query.", ex);

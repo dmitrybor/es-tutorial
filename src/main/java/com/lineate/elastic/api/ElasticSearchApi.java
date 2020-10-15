@@ -9,9 +9,11 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.FieldSortBuilder;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -24,9 +26,20 @@ public abstract class ElasticSearchApi {
     }
 
     protected List<String> performSearchQuery(final String index, final QueryBuilder queryBuilder) throws IOException {
+        return performSearchQuery(index, queryBuilder, Collections.emptyList());
+    }
+
+    protected List<String> performSearchQuery(final String index, final QueryBuilder queryBuilder,
+                                              final List<FieldSortSetting> sortSettings) throws IOException {
+
         SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
         sourceBuilder.query(queryBuilder);
         sourceBuilder.fetchSource(true);
+        sortSettings.forEach(fieldSortSetting ->
+                sourceBuilder.sort(
+                        new FieldSortBuilder(fieldSortSetting.getFieldName()).order(fieldSortSetting.getSortOrder())
+                )
+        );
         SearchRequest searchRequest = new SearchRequest();
         searchRequest.indices(index);
         searchRequest.source(sourceBuilder);
@@ -37,5 +50,6 @@ public abstract class ElasticSearchApi {
         return Arrays.stream(searchResponse.getHits().getHits())
                 .map(SearchHit::getSourceAsString)
                 .collect(Collectors.toList());
+
     }
 }

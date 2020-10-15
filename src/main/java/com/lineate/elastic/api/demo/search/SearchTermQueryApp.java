@@ -1,7 +1,9 @@
 package com.lineate.elastic.api.demo.search;
 
 import com.lineate.elastic.api.ElasticSearchTermApi;
+import com.lineate.elastic.api.FieldSortSetting;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.search.sort.SortOrder;
 
 import java.io.IOException;
 import java.util.List;
@@ -21,6 +23,20 @@ public class SearchTermQueryApp extends SearchApp {
                     .filter(Objects::nonNull)
                     .forEach(product ->
                             System.out.println("Name: " + product.getName() + " | is_active: " + product.isActive()));
+
+            System.out.println("-----------------------------");
+            System.out.println("Active products sorted by price (desc) and then by date created (asc)");
+            List<String> activeProductsSorted =
+                    elasticSearchTermApi.performTermQuery(indexName, "is_active", "true",
+                            List.of(new FieldSortSetting("price", SortOrder.DESC),
+                                    new FieldSortSetting("created", SortOrder.ASC)));
+            activeProductsSorted
+                    .stream()
+                    .map(SearchTermQueryApp::parseProductFromJson)
+                    .filter(Objects::nonNull)
+                    .forEach(product ->
+                            System.out.println("Name: " + product.getName() + " | is_active: " + product.isActive()
+                            + " | price: " + product.getPrice() + " | created: " + product.getCreated()));
 
             System.out.println("-----------------------------");
             System.out.println("Products with alcohol");
