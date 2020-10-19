@@ -8,6 +8,8 @@ import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.sort.FieldSortBuilder;
 
@@ -51,5 +53,22 @@ public abstract class ElasticSearchApi {
                 .map(SearchHit::getSourceAsString)
                 .collect(Collectors.toList());
 
+    }
+
+    public Aggregations performSearchQueryWithAggregation(final String index, final QueryBuilder queryBuilder,
+                                                       final AggregationBuilder aggregationBuilder) throws IOException {
+        SearchSourceBuilder sourceBuilder = new SearchSourceBuilder();
+        sourceBuilder.query(queryBuilder);
+        sourceBuilder.fetchSource(false);
+        sourceBuilder.aggregation(aggregationBuilder);
+        SearchRequest searchRequest = new SearchRequest();
+        searchRequest.indices(index);
+        searchRequest.source(sourceBuilder);
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
+        if (searchResponse.status() != RestStatus.OK) {
+            throw new ElasticActionFailedException("Could not get search results from cluster.");
+        }
+
+        return searchResponse.getAggregations();
     }
 }
